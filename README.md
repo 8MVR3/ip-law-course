@@ -31,6 +31,12 @@
   **какие нормы вероятно будут изменены**
   (см. `docs/LAW-GRAPH-PIPELINE.md`, демо
   `notebooks/law_graph_predictive_demo.ipynb`).
+- **Калибровка юридического агента** `legal-agent-calibration/` — отдельное
+  первое задание эксперта (до вклада в датасет): эксперт даёт норму и
+  официальные ориентиры, агент извлекает правовые факты, эксперт указывает
+  явные ошибки, агент правит до `expert_approved=true`
+  (см. `docs/EXPERT-CALIBRATION.md`, `docs/OPENCODE-LEGAL-CALIBRATOR.md`).
+  Это учебный контур, **не юридическая консультация**.
 - **Агент-готовность**: `AGENTS.md` (соученик botai), `syllabus.json`,
   `Makefile`, инструменты (`rag_search`, `session_material`,
   `assignment_brief`, `rag_api`, `quote_finder`), навыки-зеркала
@@ -45,6 +51,7 @@
 | `PROVENANCE.md` | Лицензии корпуса |
 | `verification/REPORT.md` | Верификация цитат |
 | `law_graph/` | «Закон-граф»: датасет и модель предиктивного анализа норм права |
+| `legal-agent-calibration/` | Калибровка юридического агента (первое задание эксперта) |
 | `notebooks/` | Демо-блокнот «закон-графа» (`law_graph_predictive_demo.ipynb`) |
 | `tools/` | Поиск, index-fetch, верификация, материалы и задания занятия, RAG-API |
 | `Makefile` | Короткие цели (`make help`) |
@@ -62,6 +69,11 @@ make verify                                               # проверить �
 # «закон-граф»: предиктивный анализ норм права (адаптация top-papers-graph)
 make law-demo                      # офлайн-демо на синтетическом корпусе поправок
 make law-run COURSE_CORPUS_ROOT=…  # на реальном корпусе курса
+
+# калибровка юридического агента (первое задание эксперта)
+make legal-calibration-validate JOURNAL=sessions/<id>/session.jsonl
+make legal-calibration-export   JOURNAL=sessions/<id>/session.jsonl OUT=public/session.jsonl
+make legal-calibration-pr       JOURNAL=sessions/<id>/session.jsonl
 ```
 
 Лицензия репозитория: GPL-3.0.

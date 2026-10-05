@@ -22,3 +22,8 @@ reconstructed/
 _pdf/
 _e2e_test/
 reading_ru/
+
+# калибровка юридического агента: рабочие журналы и публичные экспорты
+sessions/
+legal-agent-calibration/**/_public/
+*.sessionid

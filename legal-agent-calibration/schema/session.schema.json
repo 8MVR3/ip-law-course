@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://visualcomments.example/ip-law-course/legal-agent-calibration/session.schema.json",
+  "title": "Legal agent calibration session event (schema 1)",
+  "description": "Событие калибровочной сессии юридического агента. Одна строка JSONL = одно событие. Роли: task (задание эксперта) -> agent_answer (ответ агента) -> expert_review (явный разбор ошибок экспертом) -> (correction -> agent_answer -> expert_review)* -> final (финальный ответ, утверждённый экспертом). Публичный экспорт не содержит секретов, полных сырых текстов и персональных данных.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "session_id", "event_id", "seq", "role", "created_at", "source", "payload"],
+  "properties": {
+    "schema": { "const": 1 },
+    "session_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+      "description": "Идентификатор сессии (латиница; стабилен для всех событий сессии)"
+    },
+    "event_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,15}-[a-f0-9]{12}$",
+      "description": "Детерминированный идентификатор события: <role_short>-<sha256[:12]> от канонического содержимого; обеспечивает воспроизводимость"
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Порядковый номер события в сессии, начиная с 1, без пропусков"
+    },
+    "role": {
+      "enum": ["task", "agent_answer", "expert_review", "correction", "final"],
+      "description": "Роль события; последовательность проверяется валидатором сессии"
+    },
+    "created_at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "description": "Дата создания события (YYYY-MM-DD)"
+    },
+    "expert_approved": {
+      "type": "boolean",
+      "description": "Обязательно только для role=final: true, если эксперт утвердил финальный результат. В остальных ролях не задаётся."
+    },
+    "source": { "$ref": "#/$defs/source" },
+    "payload": { "$ref": "#/$defs/payload" }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority",
+        "jurisdiction",
+        "doc_type",
+        "title",
+        "identifier",
+        "effective_date",
+        "coordinate"
+      ],
+      "description": "Источник правовой нормы. Полные сырые тексты и персональные дела здесь не приводятся — только реквизиты и точная координата.",
+      "properties": {
+        "authority": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Орган/нормотворец: например «Государственная Дума ФС РФ», «Верховный Суд РФ», «ВОИС»"
+        },
+        "jurisdiction": {
+          "type": "string",
+          "enum": ["RU", "INT", "EU", "US", "UK", "CIS", "OTHER"],
+          "description": "Юрисдикция источника; INT — международный договор"
+        },
+        "doc_type": {
+          "enum": [
+            "statute",
+            "code",
+            "amending_act",
+            "by-law",
+            "case_law",
+            "international_treaty",
+            "official_guidance",
+            "other"
+          ],
+          "description": "Тип документа: статут/кодекс, поправка, подзаконный акт, судебный акт, международный договор, официальное разъяснение"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300,
+          "description": "Название документа (кратко, без полного текста)"
+        },
+        "identifier": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Официальный идентификатор: номер и дата акта (например «Федеральный закон от 01.07.2017 № 147-ФЗ»)"
+        },
+        "effective_date": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+          "description": "Дата вступления источника в силу: YYYY | YYYY-MM | YYYY-MM-DD; null — если неизвестна/не применимо"
+        },
+        "coordinate": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Точная координата: статья/пункт/абзац, страница или «файл · фрагмент #N»"
+        },
+        "url": {
+          "type": ["string", "null"],
+          "maxLength": 512,
+          "description": "Ссылка на официальную публикацию (pravo.gov.ru, vsrf.ru, WIPO Lex и т.п.)"
+        }
+      }
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["norm_id", "predicate", "subject", "object", "effective_from", "effective_to", "confidence"],
+      "description": "Правовая нагрузка события: извлечённый факт/норма и тип изменения. Текст нормы излагается кратко своими словами, дословные полные тексты запрещены.",
+      "properties": {
+        "norm_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9а-я-]+/.+$",
+          "maxLength": 160,
+          "description": "Идентификатор нормы: «закон/ст.N[/п.M]», например «гк-рф/ст.1252»"
+        },
+        "predicate": {
+          "enum": [
+            "изменена",
+            "дополнена",
+            "введена",
+            "изложена_в_новой_редакции",
+            "признана_утратившей_силу",
+            "исключена",
+            "уточнена"
+          ],
+          "description": "Фактический тип изменения нормы (совпадает с схемой курса)"
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300,
+          "description": "Что изменяется: норма/статья/закон (например «ГК РФ ст. 1252»)"
+        },
+        "object": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Чем изменено: поправка/закон/судебный акт (источник изменения)"
+        },
+        "effective_from": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+          "description": "Дата начала действия нормы: YYYY | YYYY-MM | YYYY-MM-DD; null — неизвестно"
+        },
+        "effective_to": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+          "description": "Дата окончания действия нормы; null — действует/неизвестно"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Уверенность агента в извлечении (0..1); эксперт может скорректировать"
+        },
+        "change_ru": {
+          "type": ["string", "null"],
+          "maxLength": 2000,
+          "description": "Краткое описание изменения своими словами (не дословный фрагмент охраняемого текста)"
+        },
+        "note_ru": {
+          "type": ["string", "null"],
+          "maxLength": 1000,
+          "description": "Примечание агента/эксперта к событию"
+        }
+      }
+    }
+  }
+}

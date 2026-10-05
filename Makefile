@@ -5,6 +5,11 @@ VENV_PY ?= $(PY)
 
 .PHONY: help search index-fetch session assignment verify serve status quotes corpus-fetch corpus-status
 .PHONY: law-demo law-run
+.PHONY: legal-calibration-validate legal-calibration-export legal-calibration-pr
+
+LEGAL_CALIB_DIR ?= legal-agent-calibration
+LEGAL_CALIB_CLI ?= $(LEGAL_CALIB_DIR)/scripts/legal_calibration_session.py
+LEGAL_CALIB_REPO ?= lawful-good-project/legal-agent-calibrations
 
 help:
 	@echo "Цели:"
@@ -19,6 +24,9 @@ help:
 	@echo "  make status                  состояние курса и корпуса"
 	@echo "  make law-demo OUT=...        офлайн-демо «закон-графа» (синтетический корпус поправок)"
 	@echo "  make law-run OUT=...         «закон-граф» на реальном корпусе (COURSE_CORPUS_ROOT)"
+	@echo "  make legal-calibration-validate JOURNAL=... проверка калибровочной сессии юр-агента"
+	@echo "  make legal-calibration-export JOURNAL=... OUT=...  публичный экспорт сессии"
+	@echo "  make legal-calibration-pr JOURNAL=...  публикация экспорта на HuggingFace (HF_TOKEN)"
 
 search:
 	test -n "$(QUERY)" || (echo "Укажите QUERY=..."; exit 1)
@@ -54,6 +62,24 @@ law-demo:
 law-run:
 	test -n "$(COURSE_CORPUS_ROOT)" || (echo "Укажите COURSE_CORPUS_ROOT=путь к корпусу (txt/*.txt)"; exit 1)
 	$(VENV_PY) -m law_graph.run_dataset --mode corpus --corpus-root "$(COURSE_CORPUS_ROOT)" --out $(if $(OUT),$(OUT),runs/law_corpus) --export
+
+# --- Калибровка юридического агента: отдельное первое задание эксперта --------
+# Полное задание — legal-agent-calibration/docs/EXPERT-CALIBRATION.md.
+# Это не юридическая консультация; публикуется только публичный (редактированный)
+# экспорт, токен читается только из HF_TOKEN и никогда не выводится.
+legal-calibration-validate:
+	test -n "$(JOURNAL)" || (echo "Укажите JOURNAL=путь к session.jsonl"; exit 1)
+	$(PY) $(LEGAL_CALIB_CLI) validate --journal "$(JOURNAL)"
+
+legal-calibration-export:
+	test -n "$(JOURNAL)" || (echo "Укажите JOURNAL=путь к session.jsonl"; exit 1)
+	test -n "$(OUT)" || (echo "Укажите OUT=путь к публичному session.jsonl"; exit 1)
+	$(PY) $(LEGAL_CALIB_CLI) export --journal "$(JOURNAL)" --out "$(OUT)"
+
+legal-calibration-pr:
+	test -n "$(JOURNAL)" || (echo "Укажите JOURNAL=путь к session.jsonl"; exit 1)
+	test -n "$(HF_TOKEN)" || (echo "Нет HF_TOKEN — публикация не выполняется"; exit 1)
+	$(PY) $(LEGAL_CALIB_DIR)/publish.py --journal "$(JOURNAL)" --repo-id "$(LEGAL_CALIB_REPO)"
 
 # --- Корпус курса: обязательное получение индекса И текстов -----------------
 # Курс не готов к занятиям, пока корпус не установлен: без текстов
